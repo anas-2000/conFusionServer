@@ -1,5 +1,10 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+
+const mongoose = require('mongoose');
+
+const Dishes = require('../models/dishes');
+
 const req = require('express/lib/request');
 
 const dishRouter = express.Router({mergeParams: true});
@@ -26,21 +31,28 @@ dishRouter.param('dishId', function(req, res, next, id){
 // mounted at '/' endpoint
 
 dishRouter.route('/')
-.all((req, res, next) => {
-    res.statusCode = 200;
-    res.setHeader('Content-Type', 'text/plain');
-    next(); //What this 'next' function does is that it keeps looking for additional specifications down below (outside the app.all)
-    //which will match the '/dishes' endpoint. 
-})// no semi-colon here
+
 
 //the next function in the app.all will call the app.get, app.post etc depending on the request type.
 // if any of the req and res are modified in the app.all then the modified parameters are passed to the 
 // app.get, app.post etc.
 .get((req, res, next) => {
-    res.end('Will send all the dishes to you!');
+    Dishes.find({}).then((dishes) => {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.json(dishes); // takes in the parameter and converts it into json and sends as the response
+    }, (err) => next(err)) //if an error occurs it will pass it to the error handler of our application
+    .catch((err) => next(err));
+    
 })
 .post((req, res, next) => {
-    res.end( 'Will add the dish: '+ req.body.name +' with details: '+ req.body.description);
+    Dishes.create(req.body).then((dish) => {
+        console.log('Dish Created ', dish);
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.json(dish);
+    }, (err) => next(err))
+    .catch((err) => next(err));
 })// no semi-colon here
 
 .put((req, res, next) => {
@@ -48,29 +60,46 @@ dishRouter.route('/')
     res.end('PUT operation not supported on /dishes');
 }) // no semi-colon here
 .delete((req, res, next) => {
-    res.end('Deleting all the dishes!');
+    Dishes.deleteMany({}).then((resp) => {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.json(resp);
+    }, (err) => next(err))
+    .catch((err) => next(err));
 }); //semi-colon here
 
 
 dishRouter.route('/:dishId')
-.all((req,res,next) => {
-    res.statusCode = 200;
-    res.setHeader('Content-Type', 'text/plain');
-    next();
-})
 .get((req,res,next) =>{
-    res.end('Will send the dish '+req.params.dishId+' to you!');
+    Dishes.findById(req.params.dishId).then((dish) => {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.json(dish);
+    }, (err) => next(err))
+    .catch((err) => next(err));
+
 })
 .post((req,res,next)=>{
     res.statusCode = 403;
     res.end('Post not supported on /dishes/'+req.params.dishId);
 })
 .put((req,res,next)=>{
-    res.write('Updating the dish: '+req.params.dishId +'\n');
-    res.end('Will update the dish: '+req.body.name +' with details : '+req.body.description);
+    Dishes.findByIdAndUpdate(req.params.dishId, {
+        $set: req.body
+    }, {new: true}).then((dish) => {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.json(dish);
+    }, (err) => next(err))
+    .catch((err) => next(err));
 })
 .delete((req,res,next) =>{
-    res.end('Deleting the dish '+req.params.dishId);
+    Dishes.findByIdAndDelete(req.params.dishId).then((resp) => {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.json(resp);
+    }, (err) => next(err))
+    .catch((err) => next(err));
 });
 
 
