@@ -2,6 +2,10 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const req = require('express/lib/request');
 
+const mongoose = require('mongoose');
+
+const Promotions = require('../models/promotions');
+
 const promoRouter = express.Router({mergeParams: true});
 
 
@@ -18,21 +22,26 @@ promoRouter.use(bodyParser.json());
 // mounted at '/' endpoint
 
 promoRouter.route('/')
-.all((req, res, next) => {
-    res.statusCode = 200;
-    res.setHeader('Content-Type', 'text/plain');
-    next(); //What this 'next' function does is that it keeps looking for additional specifications down below (outside the app.all)
-    //which will match the '/promos' endpoint. 
-})// no semi-colon here
-
 //the next function in the app.all will call the app.get, app.post etc depending on the request type.
 // if any of the req and res are modified in the app.all then the modified parameters are passed to the 
 // app.get, app.post etc.
 .get((req, res, next) => {
-    res.end('Will send all the promotionss to you!');
+    Promotions.find({}).then((promotions) => {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.json(promotions); // takes in the parameter and converts it into json and sends as the response
+    }, (err) => next(err)) //if an error occurs it will pass it to the error handler of our application
+    .catch((err) => next(err));
+    
 })
 .post((req, res, next) => {
-    res.end( 'Will add the promo: '+ req.body.name +' with details: '+ req.body.description);
+    Promotions.create(req.body).then((promotion) => {
+        console.log('Promotion Created ', promotion);
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.json(promotion);
+    }, (err) => next(err))
+    .catch((err) => next(err));
 })// no semi-colon here
 
 .put((req, res, next) => {
@@ -40,31 +49,49 @@ promoRouter.route('/')
     res.end('PUT operation not supported on /promotions');
 }) // no semi-colon here
 .delete((req, res, next) => {
-    res.end('Deleting all the promotions!');
+    Promotions.deleteMany({}).then((resp) => {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.json(resp);
+    }, (err) => next(err))
+    .catch((err) => next(err));
 }); //semi-colon here
 
 
 promoRouter.route('/:promoId')
-.all((req,res,next) => {
-    res.statusCode = 200;
-    res.setHeader('Content-Type', 'text/plain');
-    next();
-})
 .get((req,res,next) =>{
-    res.end('Will send the promo '+req.params.promoId+' to you!');
+    Promotions.findById(req.params.promoId).then((promotion) => {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.json(promotion);
+    }, (err) => next(err))
+    .catch((err) => next(err));
 })
 .post((req,res,next)=>{
     res.statusCode = 403;
     res.end('Post not supported on /promotions/'+req.params.promoId);
 })
 .put((req,res,next)=>{
-    res.write('Updating the promo: '+req.params.promoId +'\n');
-    res.end('Will update the promo: '+req.body.name +' with details : '+req.body.description);
+    Promotions.findByIdAndUpdate(req.params.promoId, {
+        $set: req.body
+    }, {new: true}).then((promotion) => {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.json(promotion);
+    }, (err) => next(err))
+    .catch((err) => next(err));
 })
 .delete((req,res,next) =>{
-    res.end('Deleting the promo '+req.params.promoId);
+    Promotions.findByIdAndDelete(req.params.promoId).then((resp) => {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.json(resp);
+    }, (err) => next(err))
+    .catch((err) => next(err));
 });
 
 
+
+//------------------------------------------------------------------------------------------------------------------------------------------------------
 
 module.exports = promoRouter; //exporting this module
