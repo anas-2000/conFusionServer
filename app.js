@@ -38,54 +38,34 @@ app.use(express.urlencoded({ extended: false }));
 app.use(session({
   name: 'session-id',
   secret: '12345-67890-09876-54321',
+  resave: true,
   saveUninitialized: false,
   store: new FileStore()
 }));
+
+// These 2 routes need to be before the authentication function because the user will first try to sign up or log in 
+// and then the authentication will be carried out.
+// So the '/' and '/users' endpoint can be accessed without being authenticated. Obviously ine would be authenticated only after loggin in /signing up
+// However the rest of the endpoints cannot be accessed without being authenticated.
+app.use('/', indexRouter);
+app.use('/users', usersRouter);
 
 function auth(req, res, next){
   console.log(req.session);
   
   if(!req.session.user){ // 'user' is a property that we have set up in the 'signed cookies' 
     //if the signedCookies do not contain the user field it means that the user has not yet been authorized
-
-      var authHeader = req.headers.authorization;
-
-    if(!authHeader){ // if authHeader is null, it means that the client did not include authorization in the header.
-      var err = new Error('You are not authenticated!');
-
-      res.setHeader('WWW-Authenticate', 'Basic');
-      err.status = 401;
-      return next(err); // will go to error handler
-    }
-
-    var auth = new Buffer.from(authHeader.split(' ')[1], 'base64').toString().split(':'); // The authorization header is of the form ' basic username:password '
-    // so we are splitting it first on the whitespace and then on the colin
-    // so now the variable auth will contain 2 values: username and password
-
-    var username = auth[0];
-    var password = auth[1];
-
-    if(username === 'admin' && password === 'password'){
-      req.session.user = 'admin';
-      next(); // request will be passed to the next middleware
-    }
-    else{
-      var err = new Error('You are not authenticated!');
-
-      res.setHeader('WWW-Authenticate', 'Basic');
-      err.status = 401;
-      return next(err); // will go to error handler
-    }
+    var err = new Error('You are not authenticated!');
+    err.status = 401;
+    return next(err); // will go to error handler
   }
   else{
-    if(req.session.user === 'admin'){
+    if(req.session.user === 'authenticated'){
       next();
     }
     else{
       var err = new Error('You are not authenticated!');
-
-
-      err.status = 401;
+      err.status = 403;
       return next(err); // will go to error handler
     }
   }
@@ -97,8 +77,7 @@ app.use(auth);
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use('/', indexRouter);
-app.use('/users', usersRouter);
+
 app.use('/dishes', dishRouter);
 app.use('/promotions', promoRouter);
 app.use('/leaders', leaderRouter);
