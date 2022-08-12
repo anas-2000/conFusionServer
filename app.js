@@ -5,6 +5,8 @@ var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 var session = require('express-session');
 var FileStore = require('session-file-store')(session);
+var passport = require('passport');
+var authenticate = require('./authenticate');
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
@@ -43,6 +45,9 @@ app.use(session({
   store: new FileStore()
 }));
 
+app.use(passport.initialize());
+app.use(passport.session()); // will automatically serialize user information in req.user (added by passport.authenticate('local))
+//and will store it in session
 // These 2 routes need to be before the authentication function because the user will first try to sign up or log in 
 // and then the authentication will be carried out.
 // So the '/' and '/users' endpoint can be accessed without being authenticated. Obviously ine would be authenticated only after loggin in /signing up
@@ -51,23 +56,15 @@ app.use('/', indexRouter);
 app.use('/users', usersRouter);
 
 function auth(req, res, next){
-  console.log(req.session);
   
-  if(!req.session.user){ // 'user' is a property that we have set up in the 'signed cookies' 
+  if(!req.user){ // req.user will be loaded in by the passport session middleware automatically.
     //if the signedCookies do not contain the user field it means that the user has not yet been authorized
     var err = new Error('You are not authenticated!');
-    err.status = 401;
+    err.status = 403;
     return next(err); // will go to error handler
   }
   else{
-    if(req.session.user === 'authenticated'){
-      next();
-    }
-    else{
-      var err = new Error('You are not authenticated!');
-      err.status = 403;
-      return next(err); // will go to error handler
-    }
+    next();
   }
 
   
