@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 
 const mongoose = require('mongoose');
+const authenticate = require('../authenticate');
 
 const Dishes = require('../models/dishes');
 
@@ -37,7 +38,11 @@ dishRouter.route('/')
 // if any of the req and res are modified in the app.all then the modified parameters are passed to the 
 // app.get, app.post etc.
 .get((req, res, next) => {
-    Dishes.find({}).then((dishes) => {
+    Dishes.find({})
+    .populate('comments.author') // This means that when the dishes are fetched from the database to be sent as the reply, then we will populate the
+    // author field in the comments sub-document in each of the dish document. The population will be done from the User documents. So Mongoose will fetch the details
+    // (username etc) from the User documents and put it in the author field of comments sub-document. 
+    .then((dishes) => {
         res.statusCode = 200;
         res.setHeader('Content-Type', 'application/json');
         res.json(dishes); // takes in the parameter and converts it into json and sends as the response
@@ -45,7 +50,7 @@ dishRouter.route('/')
     .catch((err) => next(err));
     
 })
-.post((req, res, next) => {
+.post(authenticate.verifyUser, (req, res, next) => {
     Dishes.create(req.body).then((dish) => {
         console.log('Dish Created ', dish);
         res.statusCode = 200;
@@ -55,11 +60,11 @@ dishRouter.route('/')
     .catch((err) => next(err));
 })// no semi-colon here
 
-.put((req, res, next) => {
+.put(authenticate.verifyUser, (req, res, next) => {
     res.statusCode = 403;
     res.end('PUT operation not supported on /dishes');
 }) // no semi-colon here
-.delete((req, res, next) => {
+.delete(authenticate.verifyUser, (req, res, next) => {
     Dishes.deleteMany({}).then((resp) => {
         res.statusCode = 200;
         res.setHeader('Content-Type', 'application/json');
@@ -71,7 +76,9 @@ dishRouter.route('/')
 
 dishRouter.route('/:dishId')
 .get((req,res,next) =>{
-    Dishes.findById(req.params.dishId).then((dish) => {
+    Dishes.findById(req.params.dishId)
+    .populate('comments.author')
+    .then((dish) => {
         res.statusCode = 200;
         res.setHeader('Content-Type', 'application/json');
         res.json(dish);
@@ -79,11 +86,11 @@ dishRouter.route('/:dishId')
     .catch((err) => next(err));
 
 })
-.post((req,res,next)=>{
+.post(authenticate.verifyUser, (req,res,next)=>{
     res.statusCode = 403;
     res.end('Post not supported on /dishes/'+req.params.dishId);
 })
-.put((req,res,next)=>{
+.put(authenticate.verifyUser, (req,res,next)=>{
     Dishes.findByIdAndUpdate(req.params.dishId, {
         $set: req.body
     }, {new: true}).then((dish) => {
@@ -93,7 +100,7 @@ dishRouter.route('/:dishId')
     }, (err) => next(err))
     .catch((err) => next(err));
 })
-.delete((req,res,next) =>{
+.delete(authenticate.verifyUser, (req,res,next) =>{
     Dishes.findByIdAndDelete(req.params.dishId).then((resp) => {
         res.statusCode = 200;
         res.setHeader('Content-Type', 'application/json');
@@ -106,7 +113,9 @@ dishRouter.route('/:dishId')
 
 dishRouter.route('/:dishId/comments')
 .get((req, res, next) => {
-    Dishes.findById(req.params.dishId).then((dish) => {
+    Dishes.findById(req.params.dishId)
+    .populate('comments.author')
+    .then((dish) => {
         if(dish != null){
             res.statusCode = 200;
             res.setHeader('Content-Type', 'application/json');
@@ -123,15 +132,24 @@ dishRouter.route('/:dishId/comments')
     .catch((err) => next(err));
     
 })
-.post((req, res, next) => {
+.post(authenticate.verifyUser, (req, res, next) => {
     Dishes.findById(req.params.dishId).then((dish) => {
         if(dish != null){
+            // The body of the request message contains the comment, but the body will not contain the author information.
+            // req.body is a comment object. we are creating an author field in this object.
+            req.body.author = req.user._id; // Since we have already verified the user before allowing to post the comment, we have the user's details.
+            // authenticate.verifyUser has already loaded in the req.user. i.e. req.user contains the user information
             dish.comments.push(req.body);
             dish.save().then((dish) => {
                 //If successfully added the comment
-                res.statusCode = 200;
-                res.setHeader('Content-Type', 'application/json');
-                res.json(dish);
+                Dishes.findById(dish._id)
+                .populate('comments.author') // populating the author fields of all the comments sub-documents of that dish document in which the new comment has been added.
+                // We are populating because we are sending this dish object as a response back to the client. So we need to show all the comments on the dish along with the dish itself. 
+                .then((dish) => {
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.json(dish);
+                })
             }, (err) => next(err));
         }
         else{
@@ -144,11 +162,11 @@ dishRouter.route('/:dishId/comments')
     .catch((err) => next(err));
 })// no semi-colon here
 
-.put((req, res, next) => {
+.put(authenticate.verifyUser, (req, res, next) => {
     res.statusCode = 403;
     res.end('PUT operation not supported on /dishes/'+req.params.dishId +'/comments');
 }) // no semi-colon here
-.delete((req, res, next) => {
+.delete(authenticate.verifyUser, (req, res, next) => {
     Dishes.findById(req.params.dishId).then((dish) => {
         if(dish != null){
             for(var i = (dish.comments.length - 1); i >= 0; i--){ // iterating over each comment and deleting it
@@ -189,11 +207,11 @@ dishRouter.route('/:dishId/comments/:commentId')
     .catch((err) => next(err));
 
 })
-.post((req,res,next)=>{
+.post(authenticate.verifyUser, (req,res,next)=>{
     res.statusCode = 403;
     res.end('Post not supported on /dishes/'+req.params.dishId +'/comments/'+req.params.commentId);
 })
-.put((req,res,next)=>{
+.put(authenticate.verifyUser, (req,res,next)=>{
     Dishes.findById(req.params.dishId).then((dish) => {
         if(dish != null && dish.comments.id(req.params.commentId) != null ){
             if(req.body.rating){
@@ -204,9 +222,14 @@ dishRouter.route('/:dishId/comments/:commentId')
             }
             dish.save().then((dish) => {
                 //If comment updated successfully
-                res.statusCode = 200;
-                res.setHeader('Content-Type', 'application/json');
-                res.json(dish);
+                Dishes.findById(dish._id)
+                .populate('comments.author')
+                .then((dish) => {
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.json(dish);
+                })
+                
             }, (err) => next(err));
         }
         else if (dish == null){
@@ -223,15 +246,19 @@ dishRouter.route('/:dishId/comments/:commentId')
     }, (err) => next(err))
     .catch((err) => next(err));
 })
-.delete((req,res,next) =>{
+.delete(authenticate.verifyUser, (req,res,next) =>{
     Dishes.findById(req.params.dishId).then((dish) => {
         if(dish != null && dish.comments.id(req.params.commentId) != null){ 
             dish.comments.id(req.params.commentId).remove();
             dish.save().then((dish) => {
                 //If comment deleted successfully
-                res.statusCode = 200;
-                res.setHeader('Content-Type', 'application/json');
-                res.json(dish);
+                Dishes.findById(dish._id)
+                .populate('comments.author')
+                .then((dish) => {
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.json(dish);
+                })
             }, (err) => next(err));
         }
         else if (dish == null){

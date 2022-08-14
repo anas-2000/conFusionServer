@@ -3,6 +3,7 @@ const bodyParser = require('body-parser');
 const req = require('express/lib/request');
 
 const mongoose = require('mongoose');
+const authenticate = require('../authenticate');
 const Leaders = require('../models/leaders');
 
 const leaderRouter = express.Router({mergeParams: true});
@@ -20,7 +21,7 @@ leaderRouter.route('/')
     }, (err) => next(err)) //if an error occurs it will pass it to the error handler of our application
     .catch((err) => next(err));
 })
-.post((req, res, next) => {
+.post(authenticate.verifyUser, (req, res, next) => {
     Leaders.create(req.body).then((leader) => {
         console.log('Leader Created ', leader);
         res.statusCode = 200;
@@ -30,11 +31,11 @@ leaderRouter.route('/')
     .catch((err) => next(err));
 })// no semi-colon here
 
-.put((req, res, next) => {
+.put(authenticate.verifyUser, (req, res, next) => {
     res.statusCode = 403;
     res.end('PUT operation not supported on /leaders');
 }) // no semi-colon here
-.delete((req, res, next) => {
+.delete(authenticate.verifyUser, (req, res, next) => {
     Leaders.deleteMany({}).then((resp) => {
         res.statusCode = 200;
         res.setHeader('Content-Type', 'application/json');
@@ -53,11 +54,11 @@ leaderRouter.route('/:leaderId')
     }, (err) => next(err))
     .catch((err) => next(err));
 })
-.post((req,res,next)=>{
+.post(authenticate.verifyUser, (req,res,next)=>{
     res.statusCode = 403;
     res.end('Post not supported on /leaders/'+req.params.leaderId);
 })
-.put((req,res,next)=>{
+.put(authenticate.verifyUser, (req,res,next)=>{
     Leaders.findByIdAndUpdate(req.params.leaderId, {
         $set: req.body
     }, {new: true}).then((leader) => {
@@ -67,7 +68,7 @@ leaderRouter.route('/:leaderId')
     }, (err) => next(err))
     .catch((err) => next(err));
 })
-.delete((req,res,next) =>{
+.delete(authenticate.verifyUser, (req,res,next) =>{
     Leaders.findByIdAndDelete(req.params.leaderId).then((resp) => {
         res.statusCode = 200;
         res.setHeader('Content-Type', 'application/json');

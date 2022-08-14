@@ -2,6 +2,7 @@ var express = require('express');
 const bodyParser = require('body-parser');
 var User = require('../models/users');
 var passport = require('passport');
+var authenticate = require('../authenticate');
 
 
 var router = express.Router();
@@ -24,13 +25,27 @@ router.post('/signup', (req, res, next) => {
       res.json({err: err});
     }
     else{ //if the user is successfully registered
-      passport.authenticate('local')(req, res, () => { //authenticating the user we just registered
-        // passport.authenticate will automatically check whether the user exists or not, and so we do not have to wrtie code 
-        // explicitly for it.
-        res.statusCode = 200;
-        res.setHeader('Content-Type', 'application/json');
-        res.json({sucess: true, status: 'Registration Successful!'});
-      });
+      if(req.body.firstname) // if the body of the incoming request contains firstname then we will copy that to the firstname field of this user object that just signed up. 
+      // (User schema contains firstname and lastname fields)
+        user.firstname = req.body.firstname;
+      if(req.body.lastname)
+        user.lastname = req.body.lastname;
+      user.save((err, user) => {
+        if(err){
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.json({err: err});
+          return;
+        }
+        passport.authenticate('local')(req, res, () => { //authenticating the user we just registered
+          // passport.authenticate will automatically check whether the user exists or not, and so we do not have to wrtie code 
+          // explicitly for it.
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json');
+          res.json({sucess: true, status: 'Registration Successful!'});
+        });
+      }) //saving the changes we made to this document
+     
     }
   });
 });
@@ -40,9 +55,10 @@ router.post('/login',passport.authenticate('local'), (req, res) =>{
   // first the passport middleware will be called, if it is successfull then the callback function will be called.  
   // when a user is logged in, the passport.authenticate('local') will automatically add the 'user' property to the request message.
   // so it will add req.user
+  var token = authenticate.getToken({_id: req.user._id});
   res.statusCode = 200;
   res.setHeader('Content-Type', 'application/json');
-  res.json({sucess: true, status: 'Login Successful!'});
+  res.json({sucess: true, token: token, status: 'Login Successful!'});
 });
 
 router.get('/logout', (req, res) => {
