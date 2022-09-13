@@ -60,7 +60,7 @@ dishRouter.route('/')
     .catch((err) => next(err));
 })// no semi-colon here
 
-.put(authenticate.verifyUser, (req, res, next) => {
+.put(authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
     res.statusCode = 403;
     res.end('PUT operation not supported on /dishes');
 }) // no semi-colon here
