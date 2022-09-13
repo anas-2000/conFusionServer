@@ -29,6 +29,15 @@ connect.then((db) => {
 
 var app = express();
 
+app.all('*', (req,res, next) => {
+  if(req.secure){ // if the incoming request is secure then the secure flag which will be true else the secure flag in the incoming request will be set to false
+    return next(); // just return to the normal flow because the incoming request is already on the secure port
+  }
+  else{
+    res.redirect(307, 'https://'+ req.hostname + ':' + app.get('secPort') + req.url); //redirect to the secure port
+  }
+});
+
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');

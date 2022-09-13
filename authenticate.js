@@ -35,7 +35,7 @@ exports.getToken = function(user){
 var opts = {};
 // will create a field 'jwtFromRequest' in the opts object. set it to ExtractJwt.fromAuthHEaderAsBearerToken(). Token will be included in the authentication header of the incoming request.
 opts.jwtFromRequest = ExtractJwt.fromAuthHeaderAsBearerToken();  // defines how the jwt is to be extracted from the incoming requests.
-// will create a field 'secretOrKet' in the opts object. set it to config.secretKey
+// will create a field 'secretOrKey' in the opts object. set it to config.secretKey
 opts.secretOrKey = config.secretKey;
 
 exports.jwtPassport = passport.use(new JwtStrategy(opts, 
@@ -56,3 +56,23 @@ exports.jwtPassport = passport.use(new JwtStrategy(opts,
 
     // using 'jwt' strategy for verifying user and not creating sessions.
     exports.verifyUser = passport.authenticate('jwt', {session: false});
+
+    exports.verifyAdmin = function(req, res, next){
+       if(req.user){
+            if(req.user.admin){
+                next();
+            }
+            else{
+                err = new Error("You are not authorized to perform this operation!");
+                err.status = 403;
+                next(err);
+            }
+        }
+        else{
+            err = new Error("You are not authenticated");
+            err.status = 401;
+            next(err);
+        }
+       
+    }
+    
