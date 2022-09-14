@@ -3,13 +3,13 @@ const bodyParser = require('body-parser');
 var User = require('../models/users');
 var passport = require('passport');
 var authenticate = require('../authenticate');
-
+var cors = require('./cors');
 
 var router = express.Router();
 router.use(bodyParser.json());
 
 /* GET users listing. */
-router.get('/', authenticate.verifyUser,authenticate.verifyAdmin,function(req, res, next) {
+router.get('/', cors.corsWithOptions, authenticate.verifyUser,authenticate.verifyAdmin,function(req, res, next) {
   User.find({}).then((users)=>{
     res.statusCode = 200;
     res.setHeader('Content-Type', 'application/json');
@@ -22,7 +22,7 @@ router.get('/', authenticate.verifyUser,authenticate.verifyAdmin,function(req, r
 // In  the authenticate.js file, there is a line 'exports.local = passport.use(new LocalStrategy(User.authenticate()))'
 // which means that the passport will use the local strategy since we have passed local strategy in it
 
-router.post('/signup', (req, res, next) => {
+router.post('/signup', cors.corsWithOptions, (req, res, next) => {
   User.register( new User({username: req.body.username}), req.body.password, (err, user) => { //registering a new user
     if(err){  // if there is an error in the registration
       res.statusCode = 500;
@@ -55,7 +55,7 @@ router.post('/signup', (req, res, next) => {
   });
 });
 
-router.post('/login',passport.authenticate('local'), (req, res) =>{
+router.post('/login', cors.corsWithOptions, passport.authenticate('local'), (req, res) =>{
   // when a post request will be sent to the  '/login' endpoint then:
   // first the passport middleware will be called, if it is successfull then the callback function will be called.  
   // when a user is logged in, the passport.authenticate('local') will automatically add the 'user' property to the request message.
@@ -66,7 +66,7 @@ router.post('/login',passport.authenticate('local'), (req, res) =>{
   res.json({sucess: true, token: token, status: 'Login Successful!'});
 });
 
-router.get('/logout', (req, res) => {
+router.get('/logout', cors.corsWithOptions, (req, res) => {
   if(req.session){ // if session exists
     req.session.destroy(); // session is destroyed and information regarding the session is removed from the server side.
     res.clearCookie('session-id'); //asks the client to clear the cookie witht the name 'session-id'.
