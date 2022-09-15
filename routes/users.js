@@ -79,4 +79,13 @@ router.get('/logout', cors.corsWithOptions, (req, res) => {
   }
 });
 
+router.get('/facebook/token', passport.authenticate('facebook-token'), (req, res) => {
+  if(req.user){ //We have called passport.authenticate with facebook-token strategy. So if it is succesful, it will load the user object into the request object.
+    var token = authenticate.getToken({_id: req.user._id});
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json');
+    res.json({sucess: true, token: token, status: 'Login Successful!'});
+  }
+});
+
 module.exports = router;

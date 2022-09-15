@@ -13,6 +13,9 @@ var User = new Schema({
         type: String,
         default: ''
     },
+    facebookId: String, // when the user logs in using facebook and obtains access token and passes it to the express server, 
+    //the express server will use this token to fetch the profile information from the facebook OAuth server, 
+    //and after obtaining the profile information the express server will create a new user account and use the facebookId as the index into this user account
     admin:{
         type: Boolean,
         default: false

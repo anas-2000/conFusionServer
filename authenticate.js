@@ -4,6 +4,7 @@ var User = require('./models/users');
 var JwtStrategy = require('passport-jwt').Strategy;
 var ExtractJwt = require('passport-jwt').ExtractJwt;
 var jwt = require('jsonwebtoken');
+var FacebookTokenStrategy = require('passport-facebook-token');
 
 var config = require('./config');
 
@@ -74,5 +75,35 @@ exports.jwtPassport = passport.use(new JwtStrategy(opts,
             next(err);
         }
        
+    };
+
+    exports.facebookPassport = passport.use(new FacebookTokenStrategy({
+        clientID: config.facebook.clientId,
+        clientSecret: config.facebook.clientSecret
+    }, (accessToken, refreshToken, profile, done) => {
+        User.findOne({facebookId: profile.id}, (err, user) => {
+            if(err){ // if there is an error
+                return done(err, false);
+            }
+            if(!err && user!== null){ // user has previously logged in using facebook
+                return done(null, user);
+            }
+            else{ // user does not exist
+                //this displayname, given name and family name etc are retrieved from the user's facebook profile.
+                user = new User({ username: profile.displayName});
+                user.facebookId = profile.id;
+                user.firstname = profile.name.givenName;
+                user.lastname = profile.name.familyName;
+                user.save((err, user) => {
+                    if(err){
+                        return done(err, false); // user could not be created
+                    }
+                    else{
+                        return done(null, user); // user successfully created
+                    }
+                });
+            }
+        }); // checking if the user has previously logged in using facebook
     }
+    ));
     
