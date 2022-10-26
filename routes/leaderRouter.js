@@ -15,8 +15,10 @@ leaderRouter.use(bodyParser.json());
 leaderRouter.route('/')
 .options(cors.corsWithOptions, (req, res) => {res.sendStatus(200);})
 .get(cors.cors, (req, res, next) => {
-    Leaders.find({}).then((leaders) => {
-        res.statusCode = 200;
+    Leaders.find(req.query).then((leaders) => { // query paramater contains the featured parameter. i.e. whether featured is true or not
+        // if  a query parameter is passed as true i.e. a get request is made to the endpoint /leaders?featured=true, then this will
+        //search for all the leaders that are featured.
+        res.statusCode = 200; 
         res.setHeader('Content-Type', 'application/json');
         res.json(leaders); // takes in the parameter and converts it into json and sends as the response
     }, (err) => next(err)) //if an error occurs it will pass it to the error handler of our application

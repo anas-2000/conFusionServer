@@ -9,6 +9,7 @@ var router = express.Router();
 router.use(bodyParser.json());
 
 /* GET users listing. */
+router.options('*', cors.corsWithOptions, (req, res) => {res.statusCode(200);})
 router.get('/', cors.corsWithOptions, authenticate.verifyUser,authenticate.verifyAdmin,function(req, res, next) {
   User.find({}).then((users)=>{
     res.statusCode = 200;
@@ -55,15 +56,37 @@ router.post('/signup', cors.corsWithOptions, (req, res, next) => {
   });
 });
 
-router.post('/login', cors.corsWithOptions, passport.authenticate('local'), (req, res) =>{
+router.post('/login', cors.corsWithOptions, (req, res, next) =>{
   // when a post request will be sent to the  '/login' endpoint then:
   // first the passport middleware will be called, if it is successfull then the callback function will be called.  
   // when a user is logged in, the passport.authenticate('local') will automatically add the 'user' property to the request message.
   // so it will add req.user
-  var token = authenticate.getToken({_id: req.user._id});
-  res.statusCode = 200;
-  res.setHeader('Content-Type', 'application/json');
-  res.json({sucess: true, token: token, status: 'Login Successful!'});
+  passport.authenticate('local', (err, user, info) => {
+    if(err){
+      return next(err);
+    }
+    if(!user){
+      res.statusCode = 401;
+      res.setHeader('Content-Type', 'application/json');
+      res.json({sucess: false, status: 'Login Unsuccessful!', err: info});
+    }
+    //if these 2 conditions do not occur then the passport.authenticate will add the login method to the req object
+    req.logIn(user, (err) => {
+      if(err){
+        res.statusCode = 401;
+        res.setHeader('Content-Type', 'application/json');
+        res.json({sucess: false, status: 'Login Unsuccessful!', err: 'Could not log in the user!'});
+      }
+    
+      // If we reach this point it means that the user has successfully logged in and we have to generate the token.
+      var token = authenticate.getToken({_id: req.user._id});
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json');
+      res.json({sucess: true, status: 'Login Successful!', token: token});
+  });
+  })(req, res, next);
+  
+
 });
 
 router.get('/logout', cors.corsWithOptions, (req, res) => {
@@ -87,5 +110,25 @@ router.get('/facebook/token', passport.authenticate('facebook-token'), (req, res
     res.json({sucess: true, token: token, status: 'Login Successful!'});
   }
 });
+
+//if a client tries to access with a token that is expired then the server will not be able to authenticate the client.
+// This route will check whether the client's token is still valid. If the token has expired then the client can initiate anothet login request.
+router.get('checkJWTToken', cors.corsWithOptions, (req, res) => {
+  passport.authenticate('jwt', {session: false}, (err, user, info) => {
+    if(err){
+      return next(err);
+    }
+    if(!user){
+      res.statusCode = 401;
+      res.setHeader('Content-Type', 'application/json');
+      return res.json({status: 'JWT invalid!', success: false, err: info})
+    }
+    else{
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json');
+      return res.json({status: 'JWT valid!', success: true, user: user});
+    }
+  }) (req, res);
+})
 
 module.exports = router;
